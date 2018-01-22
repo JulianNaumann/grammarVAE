@@ -7,7 +7,8 @@ This repository contains training and sampling code for the paper: <a href="http
 
 Install (CPU version) using `pip install -r requirements.txt`
 
-For GPU compatibility, replace the fourth line in requirements.txt with: https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow_gpu-0.12.1-cp27-none-linux_x86_64.whl
+For GPU compatibility, comment out the fourth line in `requirements.txt` and un-comment the fifth line.
+Requires CUDA 8 and cuDNN 6 to be installed.
 
 
 ## Creating datasets
