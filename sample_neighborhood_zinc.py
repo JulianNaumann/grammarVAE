@@ -33,8 +33,9 @@ def get_neighborhood(grammar_model, latent_epicenter, gridsize, basevector1, bas
             latent_point = latent_epicenter + (r - offset) * basevector1 + (c - offset) * basevector2
             neighbor_smile = grammar_model.decode(latent_point)[0]
             smiles[r].append(neighbor_smile)
-        if r < args.size - 1:
+        if r < gridsize - 1:
             smiles.append([])
+    return smiles
 
 def main():
     args = get_arguments()
