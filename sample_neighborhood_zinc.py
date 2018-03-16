@@ -30,9 +30,14 @@ def get_neighborhood(grammar_model, latent_epicenter, gridsize, basevector1, bas
     offset = gridsize / 2
     for r in range(gridsize):
         for c in range(gridsize):
+            neighbor_candidates = []
             latent_point = latent_epicenter + (r - offset) * basevector1 + (c - offset) * basevector2
-            neighbor_smile = grammar_model.decode(latent_point)[0]
-            smiles[r].append(neighbor_smile)
+            # sample 1000 times and then select element with most occurence
+            for i in range(1000):
+                sampled_neighbor = grammar_model.decode(latent_point)[0]
+                neighbor_candidates.append(sampled_neighbor)
+            best_fit = max(neighbor_candidates, key=neighbor_candidates.count)
+            smiles[r].append(best_fit)
         if r < gridsize - 1:
             smiles.append([])
     return smiles
