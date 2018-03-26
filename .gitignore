@@ -3,3 +3,7 @@
 
 # python
 *.py[cod]
+
+# data
+results/*.hdf5
+gridsample/*.txt
