@@ -2,6 +2,7 @@ import sys
 import molecule_vae
 import numpy as np
 import argparse
+import time
 
 def get_arguments():
     parser = argparse.ArgumentParser(description='Explore the latent space of the autoencoder')
@@ -26,17 +27,25 @@ def save_grid(list, gridsize, delta):
 def get_neighborhood(grammar_model, latent_epicenter, gridsize, unitvector1, unitvector2):
     smiles = []
     offset = gridsize / 2
+    now = time.time()
     for r in range(gridsize):
         smiles.append([])
         for c in range(gridsize):
+            num_already = r * gridsize + c + 1
+            num_total = gridsize**2
+            eta = (time.time()-now) / num_already * (num_total - num_already)
+            sys.stdout.write('\rSampling molecule {} of {}, ETA: {:.2f}'.format(num_already, num_total, eta))
+            sys.stdout.flush()
+            
             neighbor_candidates = []
             latent_point = latent_epicenter + (r - offset) * unitvector1 + (c - offset) * unitvector2
             # sample 1000 times and then select element with most occurence
-            for i in range(1000):
+            for i in range(1):
                 sampled_neighbor = grammar_model.decode(latent_point)[0]
                 neighbor_candidates.append(sampled_neighbor)
             best_fit = max(neighbor_candidates, key=neighbor_candidates.count)
             smiles[r].append(best_fit)
+    sys.stdout.write('\n')
     return smiles
 
 
