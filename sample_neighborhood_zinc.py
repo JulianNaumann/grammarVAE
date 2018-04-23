@@ -3,17 +3,20 @@ import molecule_vae
 import numpy as np
 import argparse
 import time
+import rdkit.Chem
 
 def get_arguments():
     parser = argparse.ArgumentParser(description='Explore the latent space of the autoencoder')
     parser.add_argument('-s', '--smile', type=str, metavar='SMILE_STRING', default='C[C@@H]1CN(C(=O)c2cc(Br)cn2C)CC[C@H]1[NH3+]', help='SMILE which neighborhood will be explored (if not provided sample smile will be used)')
     parser.add_argument('-t', '--size', type=int, metavar='GRIDSIZE', default=11, help='Size of the grid, must be uneven')
     parser.add_argument('-d', '--delta', type=float , metavar='DELTA', default=0.2, help='Step size for exploration')
+    parser.add_argument('-k', '--numberSamples', type=int , metavar='NUMBER_OF_SAMPLES', default=1000, help='How often each grid point is sampled')
+    parser.add_argument('-v', '--validateSmiles', type=bool , metavar='VALIDATE', default=True, help='Output only valid smiles strings')
     return parser.parse_args()
 
 
-def save_grid(list, gridsize, delta):
-    filename = 'gridsample/smiles_t{}_d{}.txt'.format(gridsize, delta)
+def save_grid(list, gridsize, delta, numberSamples, validateSmiles):
+    filename = 'gridsample/smiles_t{}_d{}_k{}_v{}.txt'.format(gridsize, delta, numberSamples, validateSmiles)
     with open(filename, 'w') as f:
         for r in range(len(list)):
             for c in range(len(list[0])):
@@ -24,7 +27,19 @@ def save_grid(list, gridsize, delta):
                 f.write('\n')
 
 
-def get_neighborhood(grammar_model, latent_epicenter, gridsize, unitvector1, unitvector2):
+def getBestFit(neighbor_candidates, validateSmiles):
+    isValid = False
+    while not isValid:
+        bestFit = max(neighbor_candidates, key=neighbor_candidates.count)
+        mol = rdkit.Chem.MolFromSmiles(bestFit)
+        neighbor_candidates = filter(lambda e: e!=bestFit, neighbor_candidates)
+        isValid = (mol is not None) or (not validateSmiles) or (not neighbor_candidates)
+    if (mol is None) and validateSmiles:
+        bestFit = "invalid"
+    return bestFit
+
+
+def get_neighborhood(grammar_model, latent_epicenter, gridsize, numberSamples, validateSmiles, unitvector1, unitvector2):
     smiles = []
     offset = gridsize / 2
     now = time.time()
@@ -39,12 +54,12 @@ def get_neighborhood(grammar_model, latent_epicenter, gridsize, unitvector1, uni
             
             neighbor_candidates = []
             latent_point = latent_epicenter + (r - offset) * unitvector1 + (c - offset) * unitvector2
-            # sample 1000 times and then select element with most occurence
-            for i in range(1):
+            # sample #numberSamples times and then select element with most occurence
+            for i in range(numberSamples):
                 sampled_neighbor = grammar_model.decode(latent_point)[0]
                 neighbor_candidates.append(sampled_neighbor)
-            best_fit = max(neighbor_candidates, key=neighbor_candidates.count)
-            smiles[r].append(best_fit)
+            bestFit = getBestFit(neighbor_candidates, validateSmiles)
+            smiles[r].append(bestFit)
     sys.stdout.write('\n')
     return smiles
 
@@ -71,9 +86,9 @@ def main():
     unitvector1 = unitvector1 * args.delta
     unitvector2 = unitvector2 * args.delta
 
-    smiles = get_neighborhood(grammar_model, latent_epicenter, args.size, unitvector1, unitvector2)
-    save_grid(smiles, args.size, args.delta)
+    smiles = get_neighborhood(grammar_model, latent_epicenter, args.size, args.numberSamples, args.validateSmiles, unitvector1, unitvector2)
+    save_grid(smiles, args.size, args.delta, args.numberSamples, args.validateSmiles)
 
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()
