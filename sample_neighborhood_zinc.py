@@ -1,41 +1,65 @@
-import sys
+import sys, os
 import molecule_vae
 import numpy as np
 import argparse
 import time
 import rdkit.Chem
+import rdkit.Chem.Draw
+import rdkit.RDLogger
+from PIL import Image
+
+lg = rdkit.RDLogger.logger()
+lg.setLevel(rdkit.RDLogger.ERROR)
+
+# for hiding rdkit stderr when validating molecules
+class HiddenPrints:
+    def __enter__(self):
+        self.stderr_fileno = sys.stderr.fileno()
+        self.stderr_bkp = os.dup(self.stderr_fileno)
+        self.stderr_fd = open("rdkit_err.log", "w")
+        os.dup2(self.stderr_fd.fileno(), self.stderr_fileno)
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stderr_fd.close()
+        os.dup2(self.stderr_bkp, self.stderr_fileno)
+
 
 def get_arguments():
     parser = argparse.ArgumentParser(description='Explore the latent space of the autoencoder')
     parser.add_argument('-s', '--smile', type=str, metavar='SMILE_STRING', default='C[C@@H]1CN(C(=O)c2cc(Br)cn2C)CC[C@H]1[NH3+]', help='SMILE which neighborhood will be explored (if not provided sample smile will be used)')
-    parser.add_argument('-t', '--size', type=int, metavar='GRIDSIZE', default=11, help='Size of the grid, must be uneven')
+    parser.add_argument('-t', '--gridsize', type=int, metavar='GRIDSIZE', default=11, help='Size of the grid, must be uneven')
     parser.add_argument('-d', '--delta', type=float , metavar='DELTA', default=0.2, help='Step size for exploration')
     parser.add_argument('-k', '--numberSamples', type=int , metavar='NUMBER_OF_SAMPLES', default=1000, help='How often each grid point is sampled')
-    parser.add_argument('-v', '--validateSmiles', type=bool , metavar='VALIDATE', default=True, help='Output only valid smiles strings')
+    parser.add_argument('-v', '--validateSmiles', action='store_true', help='Output only valid smiles strings')
     return parser.parse_args()
 
 
-def save_grid(list, gridsize, delta, numberSamples, validateSmiles):
-    filename = 'gridsample/smiles_t{}_d{}_k{}_v{}.txt'.format(gridsize, delta, numberSamples, validateSmiles)
-    with open(filename, 'w') as f:
-        for r in range(len(list)):
-            for c in range(len(list[0])):
-                f.write(list[r][c])
-                if c < len(list[0]) - 1:
-                    f.write('\t')
-            if r < len(list) - 1:
-                f.write('\n')
+def stich_image(smiles, gridsize, imageSize):
+    final_width = final_height = imageSize * gridsize
+    final_image = Image.new('L', (final_width, final_height))
+    for row in range(gridsize):
+        for col in range(gridsize):
+            if smiles[row][col] == 'invalid':
+                moleculeImage = Image.open("./molecule_neighborhood/invalid_molecule.png")
+            else:
+                with HiddenPrints():
+                    molecule = rdkit.Chem.MolFromSmiles(smiles[row][col])
+                moleculeImage = rdkit.Chem.Draw.MolToImage(molecule, size=(imageSize, imageSize))
+            moleculeImage = moleculeImage.resize((imageSize, imageSize))
+            final_image.paste(moleculeImage, (col * imageSize, row * imageSize))
+    return final_image
 
 
 def getBestFit(neighbor_candidates, validateSmiles):
     isValid = False
     while not isValid:
         bestFit = max(neighbor_candidates, key=neighbor_candidates.count)
-        mol = rdkit.Chem.MolFromSmiles(bestFit)
+        with HiddenPrints():
+            mol = rdkit.Chem.MolFromSmiles(bestFit)
         neighbor_candidates = filter(lambda e: e!=bestFit, neighbor_candidates)
         isValid = (mol is not None) or (not validateSmiles) or (not neighbor_candidates)
     if (mol is None) and validateSmiles:
-        bestFit = "invalid"
+        bestFit = 'invalid'
     return bestFit
 
 
@@ -86,9 +110,13 @@ def main():
     unitvector1 = unitvector1 * args.delta
     unitvector2 = unitvector2 * args.delta
 
-    smiles = get_neighborhood(grammar_model, latent_epicenter, args.size, args.numberSamples, args.validateSmiles, unitvector1, unitvector2)
-    save_grid(smiles, args.size, args.delta, args.numberSamples, args.validateSmiles)
+    smiles = get_neighborhood(grammar_model, latent_epicenter, args.gridsize, args.numberSamples, args.validateSmiles, unitvector1, unitvector2)
+
+IMAGESIZE = 150 # in pixels
+    filename = 'molecule_neighborhood/smiles_t{}_d{}_k{}_v{}.png'.format(args.gridsize, args.delta, args.numberSamples, args.validateSmiles)
+    final_image = stich_image(smiles, args.gridsize, IMAGESIZE)
+    final_image.save(filename)
 
 
-#if __name__ == '__main__':
-#    main()
+if __name__ == '__main__':
+    main()

@@ -6,4 +6,8 @@
 
 # data
 results/*.hdf5
-gridsample/*.txt
+molecule_neighborhood/*.png
+!molecule_neighborhood/invalid_molecule.png
+
+# logs
+*.log
