@@ -112,7 +112,7 @@ def main():
 
     smiles = get_neighborhood(grammar_model, latent_epicenter, args.gridsize, args.numberSamples, args.validateSmiles, unitvector1, unitvector2)
 
-IMAGESIZE = 150 # in pixels
+    IMAGESIZE = 150 # in pixels
     filename = 'molecule_neighborhood/smiles_t{}_d{}_k{}_v{}.png'.format(args.gridsize, args.delta, args.numberSamples, args.validateSmiles)
     final_image = stich_image(smiles, args.gridsize, IMAGESIZE)
     final_image.save(filename)
