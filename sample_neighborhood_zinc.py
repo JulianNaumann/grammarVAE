@@ -16,7 +16,7 @@ class HiddenPrints:
     def __enter__(self):
         self.stderr_fileno = sys.stderr.fileno()
         self.stderr_bkp = os.dup(self.stderr_fileno)
-        self.stderr_fd = open("rdkit_err.log", "w")
+        self.stderr_fd = open(os.devnull, "w")
         os.dup2(self.stderr_fd.fileno(), self.stderr_fileno)
     
     def __exit__(self, exc_type, exc_val, exc_tb):
