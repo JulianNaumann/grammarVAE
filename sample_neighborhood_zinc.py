@@ -5,24 +5,13 @@ import argparse
 import time
 import rdkit.Chem
 import rdkit.Chem.Draw
+#import rdkit.rdBase
 import rdkit.RDLogger
 from PIL import Image
 
-lg = rdkit.RDLogger.logger()
-lg.setLevel(rdkit.RDLogger.ERROR)
-
-# for hiding rdkit stderr when validating molecules
-class HiddenPrints:
-    def __enter__(self):
-        self.stderr_fileno = sys.stderr.fileno()
-        self.stderr_bkp = os.dup(self.stderr_fileno)
-        self.stderr_fd = open(os.devnull, "w")
-        os.dup2(self.stderr_fd.fileno(), self.stderr_fileno)
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stderr_fd.close()
-        os.dup2(self.stderr_bkp, self.stderr_fileno)
-
+#rdBase.DisableLog('rdApp.*')
+logger = rdkit.RDLogger.logger()
+logger.setLevel(rdkit.RDLogger.CRITICAL)
 
 def get_arguments():
     parser = argparse.ArgumentParser(description='Explore the latent space of the autoencoder')
@@ -42,8 +31,7 @@ def stich_image(smiles, gridsize, imageSize):
             if smiles[row][col] == 'invalid':
                 moleculeImage = Image.open("./molecule_neighborhood/invalid_molecule.png")
             else:
-                with HiddenPrints():
-                    molecule = rdkit.Chem.MolFromSmiles(smiles[row][col])
+                molecule = rdkit.Chem.MolFromSmiles(smiles[row][col])
                 moleculeImage = rdkit.Chem.Draw.MolToImage(molecule, size=(imageSize, imageSize))
             moleculeImage = moleculeImage.resize((imageSize, imageSize))
             final_image.paste(moleculeImage, (col * imageSize, row * imageSize))
@@ -54,8 +42,7 @@ def getBestFit(neighbor_candidates, validateSmiles):
     isValid = False
     while not isValid:
         bestFit = max(neighbor_candidates, key=neighbor_candidates.count)
-        with HiddenPrints():
-            mol = rdkit.Chem.MolFromSmiles(bestFit)
+        mol = rdkit.Chem.MolFromSmiles(bestFit)
         neighbor_candidates = filter(lambda e: e!=bestFit, neighbor_candidates)
         isValid = (mol is not None) or (not validateSmiles) or (not neighbor_candidates)
     if (mol is None) and validateSmiles:
